@@ -1,0 +1,443 @@
+---
+title: "CW1_12711142_A_RUSSELL"
+author: "CW1_12711142_A_RUSSELL"
+date: "06 January 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## BDA/IDAR Course Work 2
+
+Adam Russell, 12711142, MSc Data Science (Part time)
+
+# 1. Decision Trees
+
+![(a)](C:\Users\Adam\Documents\R\BDA_IDAR_CW2_1\CW2_1a.jpg)
+
+![(b)](C:\Users\Adam\Documents\R\BDA_IDAR_CW2_1\CW2_1b.jpg)
+
+# 2. Regression Trees
+
+```{r}
+library(MASS)
+library(ISLR)
+library(tree)
+fix(Carseats)
+?Carseats
+set.seed(1)
+
+#(a)
+
+Carseats_split <- sample(1:nrow(Carseats), nrow(Carseats)/2)
+Carseats.train <- Carseats[Carseats_split,]
+Carseats.test <- Carseats[-Carseats_split,]
+
+#(b)
+tree.Carseats <- tree(Carseats$Sales ~ .,data = Carseats, subset = Carseats_split)
+summary(tree.Carseats)
+#The tree function has only used: shelve location, price, average age of location population, local advertising budget
+#community income and competitor price at each location to model indicating that education level, urban or rural, US or not
+#and population size in region are not significant in relation to unit sales of car seats.
+
+plot(tree.Carseats)
+text(tree.Carseats,pretty = 0)
+
+#The plot of the regression decision tree indicates a good shelve location to be the biggest driver of unit sales of carseats.
+#The second critical driver is Carseat price.
+
+yhat <- predict(tree.Carseats, newdata = Carseats[-Carseats_split,])
+Carseats.test_sales <- Carseats[-Carseats_split, "Sales"]
+mean((yhat-Carseats.test_sales)^2) #test MSE
+
+#(c)
+cv.Carseats <- cv.tree(tree.Carseats)
+plot(cv.Carseats$size, cv.Carseats$dev,type = 'b')
+#The CV plot indicates that the minimum MSE is when the number of lead nodes is 7.
+
+prune.Carseats <- prune.tree(tree.Carseats,best=7)
+
+plot(prune.Carseats)
+text(prune.Carseats,pretty = 0)
+
+yhat_prune <- predict(prune.Carseats, newdata = Carseats[-Carseats_split,])
+mean((yhat_prune-Carseats.test_sales)^2) #test MSE
+#there for prunning the tree to 7 terminal nodes from 18 did not reduce the test MSE indicating the model
+#has high bias.
+
+#(d)
+library(randomForest)
+bag.Carseats = randomForest(Carseats$Sales ~ .,data = Carseats, subset = Carseats_split, mtry = 10, importance = TRUE)
+bag.Carseats
+
+yhat_bag <- predict(bag.Carseats, newdata = Carseats[-Carseats_split,])
+mean((yhat_bag-Carseats.test_sales)^2) #test MSE
+#Large reduction in test MSE to 2.633915 when compared with pruned tree
+
+importance(bag.Carseats)
+varImpPlot(bag.Carseats)
+#We can see that the biggest drop in prediction accuracy is when the variables Price and Shelve Location are excluded
+#which was observed in (b)
+
+#(e)
+
+testMSE <- rep(0,10)
+for (i in 1:10) {
+
+set.seed(1)  
+rf.Carseats = randomForest(Carseats$Sales ~ .,data = Carseats, subset = Carseats_split, mtry = i, importance = TRUE)
+yhat_rf <- predict(rf.Carseats, newdata = Carseats[-Carseats_split,])
+testMSE[i] <- mean((yhat_rf-Carseats.test_sales)^2) #test MSE
+
+}
+
+plot(testMSE, type = "b", xlab = "mtry", ylab = "Test MSE")
+
+#The above plot demonstrates that the random forest model is no better then the bagged model suggesting
+#the variables of the careseat data set are not highly correlated.
+
+
+rf.Carseats = randomForest(Carseats$Sales ~ .,data = Carseats, subset = Carseats_split, mtry = 8, importance = TRUE)
+importance(rf.Carseats)
+varImpPlot(rf.Carseats)
+#And accordingly the variable importance conclusions for the random forest model are the same as for the bagged
+#model in part (d).
+```
+
+#3. Classification Trees
+
+```{r}
+library(MASS)
+library(ISLR)
+library(tree)
+library(randomForest)
+fix(OJ)
+?OJ
+set.seed(1)
+
+#(a)
+
+OJ_split <- sample(1:nrow(OJ), 800)
+OJ.train <- OJ[OJ_split,]
+OJ.test <- OJ[-OJ_split,]
+
+#(b)
+
+tree.OJ <- tree(Purchase ~., data=OJ, subset = OJ_split)
+summary(tree.OJ)
+#The summary indicates that only customer brand loyalty, sale price difference between MM and CH, Sale price for CH and List price difference
+#are signifcant predictors In CH or MM purchase. There are 8 terminal nodes. The training error rate is 0.165 = 132 / 800.
+
+#(c)
+
+tree.OJ
+
+#Node 21 is a terminal node:
+# 21) SpecialCH > 0.5 13   16.05 CH ( 0.69231 0.30769 ) *
+#All the observations on this branch have a 'Indicator of special on CH' greater then 0.5.
+#There are 13 oberservations on this branch.
+#deviance = 16.05
+#The overall prediction for this branch is a purchase of CH as indicated by 0.69231 of the observations at this node.
+
+#(d)
+
+plot(tree.OJ)
+text(tree.OJ,pretty = 0)
+#The resulting classification decision tree indicates that customers with a CH brand loyalty greater then 0.508643 are highly likely to purchase
+#CH over MM. This is indicated by ALL the terminal nodes following LoyalCH < 0.508643 split along the NO branch predicting CH purchases. Conversely customers
+#with CH brand loyalty less then 0.264232 are highley likely to purchase MM.This is indicated by ALL the terminal nodes following 
+#LoyalCH < 0.264232 split along the YES branch predicting MM purchases.Customers with LoyalCH between 0.26232 and 0.508643 make a decision between MM and CH
+#based on price difference and if there is a special deal on CH.
+
+#(e)
+tree.OJ.pred <- predict(tree.OJ, OJ.test, type = "class")
+OJ.test_Purchase <- OJ[-OJ_split, "Purchase"]
+table(tree.OJ.pred, OJ.test_Purchase)
+(147+62)/270
+#The test error rate is 0.7740741
+
+#(f)
+cv.OJ <- cv.tree(tree.OJ, FUN=prune.misclass)
+names(cv.OJ)
+cv.OJ
+
+#(g)
+par(mfrow=c(1,2))
+plot(cv.OJ$size,cv.OJ$dev,type="b")
+
+#(h)
+#The results indicate that a classitication decision tree with two or more terminal nodes have lowest error rate.
+
+#(i)
+#Tree pruning to 5 terminal nodes was selected as the cross validation classification error is inidcated as being the same
+#for 2 or more terminal nodes.
+prune.OJ <- prune.misclass(tree.OJ, best = 5)
+plot(prune.OJ)
+text(prune.OJ,pretty=0)
+
+#(j)
+summary(prune.OJ)
+#The training error rate is the same as for the unpruned tree: 0.165 = 132/800
+
+#(k)
+prune.OJ.pred <- predict(prune.OJ, OJ.test, type = "class")
+table(prune.OJ.pred, OJ.test_Purchase)
+(147+62)/270
+#The test error rate is the same as for the unpruned tree: 0.7740741
+```
+
+#4.SVM
+
+```{r}
+library(MASS)
+library(ISLR)
+library(e1071)
+library(LiblineaR)
+set.seed(1)
+fix(Auto)
+?Auto
+
+#(a)
+above_median_mpg <- ifelse(Auto$mpg<=median(Auto$mpg),0,1)
+median(Auto$mpg)
+Auto2 <- data.frame(xx=Auto[0:6], yy=as.factor(above_median_mpg))
+#Removing name, year of manufacture, cylinders and origin information from data Auto dataset.
+head(Auto2)
+
+#(b)
+Auto2.svm.tune.linear <- tune(svm, yy~., data=Auto2, kernel="linear", ranges=list(cost=c(0.001 , 0.01 , 0.1, 1 ,5 ,10 ,100, 1000)))
+summary(Auto2.svm.tune.linear)
+#The results of the tuning show that the errors are at a minium for a cost equal to 5.
+
+Auto2.svm.linear <- svm(formula = yy~., data = Auto2, kernel = "linear", cost = 5)
+summary(Auto2.svm.linear)
+
+#(c)
+Auto2.svm.tune.radial <- tune(svm, yy~., data=Auto2, kernel="radial", ranges=list(cost=c(0.001 , 0.01 , 0.1, 1 ,5 ,10 ,100, 1000),gamma =c(0.001 , 0.01 , 0.1, 1 ,5 ,10 ,100, 1000)))
+summary(Auto2.svm.tune.radial)
+#The results of the tuning show that the errors are at a minium for costs equal to 1000 and gamma equal to 0.001.
+
+Auto2.svm.radial <- svm(formula = yy~., data = Auto2, gamma = 0.001, kernel = "radial", cost = 1000)
+summary(Auto2.svm.radial)
+
+Auto2.svm.tune.poly <- tune(svm, yy~., data=Auto2, kernel="polynomial", ranges=list(cost=c(0.001 , 0.01 , 0.1, 1 ,5 ,10 ,100, 1000),degree=c(2,3,4,5)))
+summary(Auto2.svm.tune.poly)
+#The results of the tuning show that the errors are at a minium for costs equal to 1000 and degree equal to 3.
+
+Auto2.svm.poly <- svm(formula = yy~., data = Auto2, kernel = "polynomial", cost = 1000, degree = 3)
+summary(Auto2.svm.poly)
+
+#(d)
+
+plot(Auto2.svm.linear, Auto2, xx.mpg ~ xx.cylinders)
+plot(Auto2.svm.radial, Auto2, xx.mpg ~ xx.cylinders)
+plot(Auto2.svm.poly, Auto2, xx.mpg~ xx.cylinders)
+
+plot(Auto2.svm.linear, Auto2, xx.mpg ~ xx.displacement)
+plot(Auto2.svm.radial, Auto2, xx.mpg ~ xx.displacement)
+plot(Auto2.svm.poly, Auto2, xx.mpg~ xx.displacement)
+
+plot(Auto2.svm.linear, Auto2, xx.mpg ~ xx.horsepower)
+plot(Auto2.svm.radial, Auto2, xx.mpg ~ xx.horsepower)
+plot(Auto2.svm.poly, Auto2, xx.mpg~ xx.horsepower)
+
+plot(Auto2.svm.linear, Auto2, xx.mpg ~ xx.weight)
+plot(Auto2.svm.radial, Auto2, xx.mpg ~ xx.weight)
+plot(Auto2.svm.poly, Auto2, xx.mpg~ xx.weight)
+
+plot(Auto2.svm.linear, Auto2, xx.mpg ~ xx.acceleration)
+plot(Auto2.svm.radial, Auto2, xx.mpg ~ xx.acceleration)
+plot(Auto2.svm.poly, Auto2, xx.mpg~ xx.acceleration)
+```
+
+#5.SVM
+
+```{r}
+library(MASS)
+library(ISLR)
+library(e1071)
+library(LiblineaR)
+set.seed(1)
+
+#(a)
+X1 <- c(3, 2, 4, 1, 2, 4, 4)
+X2 <- c(4, 2, 4, 4, 1, 3, 1)
+
+#Plot function graphical parameters: 2 = red, 4 = blue
+Y <- c(2,2,2,2,4,4,4)
+
+toy=data.frame(X1,X2,Y)
+
+plot(toy$X1, toy$X2,col = Y)
+
+#(b)
+#The data frame 'toy' has two predictor dimensions so it may be possible to define the maximal margin hyperplane
+#by defining the linear equation of a line sperating the two classes.
+#By eye, we can see that observations 2 & 3 and 5 & 6 are logical support vectors for a hyperplane.
+#The limits of the hyperplane margin are defined by lines that pass over observations 2 & 3 and 5 & 6.
+#Both these lines have equal linear gradients:
+# m = dX2/dX1 = 4-2 / 4-2 = 1 for observations 2 & 3
+# m = dX2/dX1 = 3-1 / 4-2 = 1 for observations 5 & 6
+#There for the linear gradient of the hyperplane line is also 1.
+#The linear intercepts of these marging limits are as follows:
+# y-4 = m(x-4) for observation 2 leading to a upper margin line defined by the linear equation X2=X1
+# y-3 = m(x-4) for observation 6 leading to a lower margin line defined by the linear equation x2=X1-1
+#There for the linear intercept of the hyperplane line is -1/2 = -0.5.
+
+abline(a=-0.5,b=1, col = 3)
+
+#There for the hyperplane line is defined by
+#-0.5 + X1 - X2 = 0
+#hyper plane coefficients: BETA0=-0.5, BETA1=1, BETA2=-1
+
+#(c)
+#classify to red if [-0.5 + X1 - X2 < 0] and classify to blue otherwise.
+-0.5+toy$X1-toy$X2
+
+#(d)
+abline(a=0,b=1, col = 5)
+abline(a=-1,b=1, col = 5)
+
+#(e)
+#The support vectors are observations 2 & 3 and 5 & 6.
+
+#(e)
+#As obvservation 7 is no a support vector, a slight movement such that it does not approach a margin will not impact
+#the maximal margin hyper plane.
+
+#(f)
+#An example of a non optimal seperating hyper plane has the following equation and is plotted in red:
+#[-1 + 1.2*X1 -X2 = 0]
+abline(a=-1, b=1.2, col = 6)
+
+#(g)
+#An example of an additional Blue point [+] that would make the two classes no longer seperable by a hyperplane
+#is shown at position (2, 3.5):
+points(2,3.5, col = 4, pch = "+")
+```
+
+#6. Hierarchical Clustering
+
+```{r}
+library(MASS)
+library(ISLR)
+set.seed(1)
+fix(USArrests)
+?USArrests
+
+#(a)
+hc.complete <- hclust(dist(USArrests), method ="complete")
+plot(hc.complete, main ='Complete', cex=0.9)
+
+#(b)
+cutree(hc.complete, k=3)
+
+#(c)
+apply(USArrests , 2, mean )
+apply(USArrests , 2, var )
+
+USArrests.scaled <- scale(USArrests, scale = TRUE)
+apply(USArrests.scaled , 2, mean )
+apply(USArrests.scaled , 2, var )
+
+hc.complete.scaled <- hclust(dist(USArrests.scaled), method ="complete")
+plot(hc.complete.scaled, main ='Complete', cex=0.9)
+
+cutree(hc.complete.scaled, k=3)
+
+
+#(d)
+plot(hc.complete, main ='Complete', cex=0.9)
+plot(hc.complete.scaled, main ='Complete', cex=0.9)
+#Observing the denograms with unscaled variables on the left and scaled variable with SD = 1 on the right, the right hand
+#plot has more gradual levels representing where all the parameters of the data set have equal impact on the clustering algorithm.
+#Alaska stands out on the scaled dendrogram because of its low urban population yet comparable arrest rates to states with
+#much higher urban populaions.
+```
+
+#7. PCA & K-Means Clustering
+
+```{r}
+library(MASS)
+library(ISLR)
+set.seed(19)
+
+#(a)
+x = matrix(rnorm(60*50), ncol = 50)
+x[1:20,]= x[1:20,]+2.4 #CLUSTER A
+x[21:40,]= x[21:40,]+0.5 #CLuSTER B
+x[41:60,]= x[41:60,]+1.2 #CLUSTER C
+k <- c(rep('CLUSTER A', times=20), rep('CLUSTER B', times=20), rep('CLUSTER C', times=20))
+k_col <- c(rep(2, times=20), rep(3, times=20), rep(4, times=20))
+
+#(b)
+pca.x <- prcomp(x)
+pca.x
+
+biplot(pca.x, col = c(2, 4))
+
+Cols = function(vec){
+  cols = rainbow(length(unique(vec)))
+  + return (cols[as.numeric(as.factor(vec))])
+  }
+
+plot(pca.x$x[,1:2],col = Cols(k_col), pch =19, xlab ="Z1", ylab =" Z2")
+
+#(c)
+km.k3 <- kmeans(x,3,nstart = 100)
+km.k3
+
+
+km.k3.table <- table(k,km.k3$cluster)
+km.k3.table
+#The row labels are the true cluster assignments for each observation and the columns labels are the kmean cluster asignments.
+#In this format correct kmeans clustering assignment would show only one 20 value in any row or column. There for we can see
+#that there are 2 errors in the kmeans clustering assignment.
+
+#(d)
+km.k2 <- kmeans(x,2,nstart = 100)
+km.k2
+
+
+km.k2.table <- table(k,km.k2$cluster)
+km.k2.table
+#This time the kmeans clustering function has completely clustered together 2 of the 3 original clusters that have the closest
+#mean speration [1.2-0.5=0.7].
+
+#(e)
+km.k4 <- kmeans(x,4,nstart = 100)
+km.k4
+
+
+km.k4.table <- table(k,km.k4$cluster)
+km.k4.table
+#This time the kmeans clustering function has divided cluster B into two new clusters.
+
+#(f)
+km.pca.k3 <- kmeans(pca.x$x[,1:2],3,nstart = 100)
+km.pca.k3
+
+
+km.pca.k3.table <- table(k,km.pca.k3$cluster)
+km.pca.k3.table
+#This kmeans cluster analysis using princple components 1 and 2 only shows similar accuracy to the kmeans cluster analysis
+#in a which we would expect given that all variables have the same random spread and the same mean shift.
+
+#(g)
+
+x.scaled <- scale(x, scale=T)
+
+km.k3.scaled <- kmeans(x.scaled,3,nstart = 100)
+km.k3.scaled
+
+
+km.k3.scaled.table <- table(k,km.k3.scaled$cluster)
+km.k3.scaled.table
+#This kmeans cluster analysis using princple components 1 and 2 only shows similar accuracy to the kmeans cluster analysis
+#in a which we would expect given that all variables have the same random spread and the same mean shift.
+
+```

@@ -1,0 +1,339 @@
+---
+title: "CW1_12711142_A_RUSSELL"
+author: "CW1_12711142_A_RUSSELL"
+date: "18 November 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## BDA/IDAR Course Work 1
+
+Adam Russell, 12711142, MSc Data Science (Part time)
+
+# 1. Statistical Learning Methods
+
+(a) When the sample size *n* is extremely large and the number of predictors *p* is small we would expect a flexible statistical learning method to **outperform** an inflexible method as flexible models capture complex relationships but require large training samples for accuracy.
+
+(b) When the number of predictors is *p* is large and the number of observations *n* is small we would expect a flexible statistical learning method to **underperform** an inflexible method as flexible models tend to create complex relationships that are not present when the sample size is small resulting in high model variance.
+
+(c) When the relationship between the predictor and response is highly non-linear, we would expect a flexible statistical learning method to **outperform** an inflexible method as inflexible models cannot capture the complexity of non-linear relationships so generally produce high bias models in such applications. 
+
+(d) When the variance of error terms is extremely large, we would expect a flexible statistical learning method to **underperform** an inflexible method as a resulting flexible model may be *overfitted* where by it has been trained to follow the errors to closely.
+
+# 2. Descriptive Analysis
+
+```{r}
+ORAL_RESULTS <- c(4, 1, 4, 5, 3, 2, 3, 4, 3, 5, 2, 2, 4, 3, 5, 5, 1, 1, 1, 2)
+WRITTEN_RESULTS <- c(2, 3, 1, 4, 2, 5, 3, 1, 2, 1, 2, 2, 1, 1, 2, 3, 1, 2, 3, 4)
+COMB_RESULTS <- ORAL_RESULTS + WRITTEN_RESULTS
+COMB_RESULTS
+
+getmode <- function(x) {
+  ux <- unique(x)
+  tab <- tabulate(match(x, ux))
+  ux[tab == max(tab)]
+}
+
+#getmode was found on https://stackoverflow.com/questions/2547402/is-there-a-built-in-function-for-finding-the-mode
+
+#(a)
+mean(ORAL_RESULTS)
+getmode(ORAL_RESULTS)
+median(ORAL_RESULTS)
+var(ORAL_RESULTS)
+sd(ORAL_RESULTS)
+
+mean(WRITTEN_RESULTS)
+getmode(WRITTEN_RESULTS)
+median(WRITTEN_RESULTS)
+var(WRITTEN_RESULTS)
+sd(WRITTEN_RESULTS)
+
+mean(COMB_RESULTS)
+getmode(COMB_RESULTS)
+median(COMB_RESULTS)
+var(COMB_RESULTS)
+sd(COMB_RESULTS)
+
+#(b)
+plot(ORAL_RESULTS,WRITTEN_RESULTS)
+cor(ORAL_RESULTS,WRITTEN_RESULTS)
+cov(ORAL_RESULTS,WRITTEN_RESULTS)
+
+#(c)
+#There is a negative correlation between oral and written test results.
+
+#(d)
+#The correlation between the oral and written test results is low (<0.3) indicating no strong relationship between the two results.
+```
+
+#3.Descriptive Analysis
+
+```{r}
+library(MASS)
+library(ISLR)
+fix(Auto)
+
+#(a) Below is the list of predictors and thier quantitative/qualitative catergory
+#"mpg" - quantitative
+#"cylinders" - quantitative
+#"displacement" - quantitative
+#"horsepower" - quantitative
+#"weight" - quantitative
+#"acceleration" - quantitative
+#"year" - quantitative
+#"origin" - qualitative
+#"name" - qualitative
+
+#(b)
+range(Auto$mpg) #range of 37.6
+range(Auto$cylinders) #range of 5
+range(Auto$displacement) #range of 387
+range(Auto$horsepower) #range of 184
+range(Auto$weight) #range of 3527
+range(Auto$acceleration)#range of 16.8
+range(Auto$year)#range of 12
+
+
+#(c)
+mean(Auto$mpg)
+sd(Auto$mpg)
+
+mean(Auto$displacement)
+sd(Auto$displacement)
+
+mean(Auto$horsepower)
+sd(Auto$horsepower)
+
+mean(Auto$weight)
+sd(Auto$weight)
+
+mean(Auto$acceleration)
+sd(Auto$acceleration)
+
+mean(Auto$year)
+sd(Auto$year)
+
+#(d)
+Auto_rev <- Auto[-c(10, 85),]
+
+range(Auto_rev$mpg)#range of 37.6
+mean(Auto_rev$mpg)
+sd(Auto_rev$mpg)
+
+range(Auto_rev$displacement)#range of 387
+mean(Auto_rev$displacement)
+sd(Auto_rev$displacement)
+
+range(Auto_rev$horsepower)#range of 184
+mean(Auto_rev$horsepower)
+sd(Auto_rev$horsepower)
+
+range(Auto_rev$weight)#range of 3527
+mean(Auto_rev$weight)
+sd(Auto_rev$weight)
+
+range(Auto_rev$acceleration)#range of 16.8
+mean(Auto_rev$acceleration)
+sd(Auto_rev$acceleration)
+
+range(Auto_rev$year)#range of 12
+mean(Auto_rev$year)
+sd(Auto_rev$year)
+
+#(e)
+plot(Auto$displacement,Auto$mpg)
+#This plot shows a negative correlation between displacement and mpg.
+plot(Auto$horsepower ,Auto$mpg)
+#This plot shows a negative correlation between horsepower and mpg.
+plot(Auto$weight,Auto$mpg)
+#This plot shows a negative correlation between weight and mpg.
+plot(Auto$displacement,Auto$horsepower)
+#This plot shows a positive correlation between displacement and horsepower.
+plot(Auto$displacement,Auto$weight)
+#This plot shows a positive correlation between displacement and weight.
+plot(Auto$weight,Auto$horsepower)
+#This plot shows a positive correlation between weight and horsepower.
+
+#(f)The plots suggest that displacement, horsepower and weight would all be good variables for an mpg prediction model.
+```
+
+#4.Linear Regression
+
+```{r}
+library(MASS)
+library(ISLR)
+fix(Auto)
+
+#(a)
+lm.fit<-lm(mpg~horsepower,data = Auto)
+summary(lm.fit)
+
+# i.The P value for Beta1 is 2e-16 which is less then 0.05 indicating that Beta1 is not equal to zero
+# (and the Null hypothesis is void).
+
+mean(Auto$mpg)
+# ii.The RSE is 4.906 which upon comparison with MPG mean of 23.44592 shows a percentage error of
+# of 20.9%. This lack of fit measurment would probably not be acceptable my engineering standards
+# (citation required).
+# The multiple R-squared value indicates that 60% of the variability has been explained by the
+# the linear regression of MPG on Horsepower.
+
+cor(Auto$horsepower,Auto$mpg)
+# iii. The correlation value of -0.7784268 indicates high negative correlation indicating 
+# a strong negative relationship, that is the larger the horse power of a vechile the lower the mpg
+
+HP_98<-data.frame(horsepower=98)
+predict(lm.fit,HP_98, interval = "confidence")
+predict(lm.fit,HP_98, interval = "prediction")
+# iv. Linear regression model: MPG=-0.157845*horsepower+39.935861
+# there for 98 horsepower model we would predict an MPG of: 24.76708
+
+#(b)
+
+plot(Auto$horsepower,Auto$mpg)
+abline(lm.fit, col="red")
+#(c)
+
+nd<-data.frame(horsepower=(1:392))
+p_conf<-predict(lm.fit,interval="confidence",newdata = nd)
+p_pred<-predict(lm.fit,interval="predict", newdata = nd)
+lines(nd$horsepower,p_conf[,"lwr"],col="green",type = "b", pch="+")
+lines(nd$horsepower,p_conf[,"upr"],col="green",type = "b", pch="+")
+lines(nd$horsepower,p_pred[,"upr"],col="blue",type = "b", pch="*")
+lines(nd$horsepower,p_pred[,"lwr"],col="blue",type = "b", pch="*")
+```
+
+#5.Logistical Regression
+
+```{r}
+library(MASS)
+library(ISLR)
+fix(Boston)
+mdn_crim<-median(Boston$crim)
+
+mcrim<-Boston$crim>mdn_crim
+#FALSE-SUBURB HAS CRIME RATE BELOW BOSTON MEDIAN
+#TRUE-SUBURB HAS CRIME RATE ABOVE BOSTON MEDIAN
+
+glm.fit<-glm(mcrim~zn+indus+chas+nox+rm+age+dis+rad+tax+ptratio+black+lstat+medv,data=Boston,family = binomial)
+summary(glm.fit)
+
+#The two predictors with the smallest P values are:
+#nox,nitrogen oxides concentration (parts per 10 million) @ 5.37e-11
+#rad, index of accessibility to radial highways @ 1.66e-05
+#This suggests that there is a relationship between [nox, rad] and the probability of
+#of a suburb have a crime rate above or below the median across the city of boston.
+
+#The postive coefficient for nox suggests that as the suburban concentration of nitrogen oxides increases,
+#so to does probability that the suburban crime rate will be above the Boston crime rate median.
+plot(Boston$nox,Boston$crim)
+plot(Boston$nox,mcrim)
+#The postive coefficient for rad suggests that as the suburban index of accessibility to radial highways increases,
+#so to does probability that the suburban crime rate will be above the Boston crime rate median.
+plot(Boston$rad,Boston$crim)
+plot(Boston$rad,mcrim)
+
+#we now compare the accuracy of logistical regression model with all the predictors against
+#a corrected with just the nox and rad predictors both using the training data set
+
+glm.probs<-predict(glm.fit,type = "response")
+glm.pred<-rep(FALSE,506)
+glm.pred[glm.probs>.5]<-TRUE
+table(glm.pred,mcrim)
+(234+229)/506
+#The logistical regression model with all the Boston data set predictors was found to have an accuracy of 91.5%
+#in predicting if a suburb had a crime rate above the Boston city median
+
+#We now remove all predictors except nox and rad
+glm.fit2<-glm(mcrim~nox+rad,data=Boston,family = binomial)
+summary(glm.fit2)
+glm.probs2<-predict(glm.fit2,type = "response")
+glm.pred2<-rep(FALSE,506)
+glm.pred2[glm.probs2>.5]<-TRUE
+table(glm.pred2,mcrim)
+(229+209)/506
+#The logistical regression model with just the nox and rad predictors from the Boston data set predictors was found to have an accuracy of 86.6%
+#in predicting if a suburb had a crime rate above the Boston city median which when compared to full
+#predictor model demonstrates that most of the accuracy is driven by the these two predictors
+```
+
+#6. Resampling Methods
+
+The standard deviation of a particular statistical learning method is the mean squared error (MSE) of the responses when the model is tested with observations that were not used for training. The MSE is estimated using Cross validation techniques where by portions of training data are held out from model training to be used for testing instead. The MSE will vary depending on the samples drawn for testing so the apportioning, training and testing process is performed multiple times and the total MSE averaged out. Leave one out cross validation LOOCV apportions a single observation so the number of cycles performed is the same number as the sample size. K-fold cross validation divides the data into *k* number of parts so the number of cycles performed is the same number as *k*.
+
+#7. Resampling Methods
+```{r}
+#(a)
+set.seed(500)
+y = rnorm(500)
+x = 4 - rnorm(500)
+y = x - 2*x^2 + 3*x^4 + rnorm(500)
+
+#n is the sample size which is 500
+#p is the number of preditors which is 1 in this case, x. The model is a quartic polynomial
+
+#(b)
+plot(x,y)
+#This dataset demonstrates a strong positive correlation with low irreducible error. A simple linear regression model
+#for prediction would suffer from high bias as it would fail to caputure the 4th degree polynomial curve
+#of the true underlying model. There for a more flexible model is recommended.
+
+#(c)
+library(boot)
+set.seed(23)
+y_c = rnorm(500)
+x_c = 4 - rnorm(500)
+y_c = x_c - 2*x_c^2 + 3*x_c^4 + rnorm(500)
+plot(x_c,y_c)
+Q7_c<-data.frame(x_c,y_c)
+
+cv.err.c1=rep(0,4)
+CV.err.c2=rep(0,4)
+
+for (i in 1:4) { #LOOCV & K-FOLD loop
+  glm.fit.c<-glm(y_c~poly(x_c,i),data=Q7_c)
+  cv.err.c1[i] <- cv.glm(Q7_c,glm.fit.c)$delta[1]
+  CV.err.c2[i] <- cv.glm(Q7_c,glm.fit.c,K=10)$delta[1]
+}
+
+cv.err.c1
+CV.err.c2
+
+#(d)
+library(boot)
+set.seed(46)
+y_d = rnorm(500)
+x_d = 4 - rnorm(500)
+y_d = x_d - 2*x_d^2 + 3*x_d^4 + rnorm(500)
+plot(x_d,y_d)
+Q7_d<-data.frame(x_d,y_d)
+
+cv.err.d1=rep(0,4)
+CV.err.d2=rep(0,4)
+
+for (i in 1:4) { #LOOCV & K-FOLD loop
+  glm.fit.d<-glm(y_d~poly(x_d,i),data=Q7_d)
+  cv.err.d1[i] <- cv.glm(Q7_d,glm.fit.d)$delta[1]
+  CV.err.d2[i] <- cv.glm(Q7_d,glm.fit.d,K=10)$delta[1]
+  print(summary(glm.fit.d))
+}
+
+cv.err.d1
+CV.err.d2
+#As expected, the predicted test MSE's for the models generated with the two different datasets from the
+#same true underlying model were found to have negligible difference. As both samples are of the same size,
+#we expect the amount of bias and variance in each order of model to be the same no matter what the
+#sample is used for training.
+
+
+#(e) For part (c), the model with the lowest LOOCV and K-FOLD CV errors was iv. QUARTIC MODEL which
+# which we would expect given that the true underlying function is QUARTIC
+
+#(f) Upon reviewing the summarys of each model in part (c), we can see that the coefficients
+#for the iv. quartic term have the lowest standard deviations which agree with the conclusions
+#drawn in (e) that it is the most accurate model.
+```
